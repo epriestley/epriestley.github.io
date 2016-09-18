@@ -7,6 +7,14 @@ core.thisFrame = null;
 core.frameTime = null;
 core.pads = null;
 core.padIndex = null;
+core.rawAcceleration = 0;
+core.rawVelocity = 0;
+core.rawWork = 0;
+core.sessionWork = 0;
+core.friction = 0.998;
+core.ups = 50;
+
+core.stars = [];
 
 core.redraw = function() {
   var canvas = core.canvas;
@@ -18,11 +26,53 @@ core.redraw = function() {
   context.fillStyle = "#000000";
   context.fillRect(0, 0, w, h);
 
+  context.lineWidth = 1;
+  for (var ii = 0; ii < core.stars.length; ii++) {
+    var star = core.stars[ii];
+    context.strokeStyle = 'rgba(255, 255, 255, ' + star.z + ')';
+    context.beginPath();
+    context.moveTo(star.x, star.y);
+    context.lineTo(star.x, star.y + (core.rawVelocity * star.z * 3));
+    context.closePath();
+    context.stroke();
+  }
+
   core.updateGamepads();
   core.updateFPS();
 };
 
 core.step = function() {
+  var canvas = core.canvas;
+  var context = core.context;
+
+  var w = canvas.width;
+  var h = canvas.height;
+
+  if (core.padIndex === null) {
+    return;
+  }
+
+  core.rawAcceleration = 3 * (core.input.axes[1] / core.ups);
+  core.rawWork += Math.abs(core.rawAcceleration);
+  core.sessionWork += Math.abs(core.rawAcceleration);
+  core.rawVelocity += core.rawAcceleration;
+  core.rawVelocity = core.rawVelocity * core.friction;
+
+  while (core.stars.length < 32) {
+    core.stars.push(
+      {
+        x: Math.random() * w,
+        y: Math.random() * h,
+        z: Math.random()
+      });
+  }
+
+  for (var ii = 0; ii < core.stars.length; ii++) {
+    core.stars[ii].y += (core.rawVelocity * core.stars[ii].z);
+    if (core.stars[ii].y > h) {
+      core.stars[ii].y -= h;
+    }
+  }
 
 };
 
@@ -56,13 +106,13 @@ core.update = function(step) {
     core.readInput();
 
     var did_step = false;
-    var step_ticks = 20;
+    var step_ticks = (1000 / core.ups);
     while (delta > step_ticks) {
       did_step = true;
 
       core.step();
 
-      delta -= 20;
+      delta -= step_ticks;
     }
 
     core.deltaAccumulator = delta;
@@ -267,6 +317,14 @@ core.updateFPS = function() {
     context.font = '11px Verdana';
     context.fillStyle = 'rgba(255, 255, 255, 0.66)';
     context.fillText(fps + ' FPS', 10, 24);
+
+    var life_work = parseInt(core.rawWork, 10);
+    var local_work = parseInt(core.sessionWork, 10)
+    context.fillText(life_work + ' Lifetime Work', 10, 40);
+    context.fillText(local_work + ' Session Work', 10, 56);
+
+    var raw_velocity = parseInt(core.rawVelocity);
+    context.fillText(raw_velocity + ' Raw Velocity', 10, 72);
   }
 };
 
@@ -275,6 +333,8 @@ window.onresize = function() {
 
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
+
+  core.stars = [];
 
   core.update();
 };
@@ -290,9 +350,24 @@ window.onload = function() {
     return context;
   })();
 
+  var saved;
+  try {
+    saved = JSON.parse(localStorage.getItem('saved-game'));
+  } catch (exception) {
+    saved = {};
+  }
 
+  core.rawWork = saved.rawWork || 0;
 
+  setInterval(core.save, 1000);
 
   window.onresize();
 };
 
+core.save = function() {
+  var data = {
+    rawWork: core.rawWork
+  };
+
+  localStorage.setItem('saved-game', JSON.stringify(data));
+};
