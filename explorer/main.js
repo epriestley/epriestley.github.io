@@ -8,11 +8,15 @@ core.frameTime = null;
 core.pads = null;
 core.padIndex = null;
 core.rawAcceleration = 0;
+core.calmedAcceleration = 0;
 core.rawVelocity = 0;
 core.rawWork = 0;
 core.sessionWork = 0;
 core.friction = 0.998;
 core.ups = 50;
+core.yaw = 0;
+core.yawVelocity = 0;
+core.yawAcceleration = 0;
 
 core.stars = [];
 
@@ -25,6 +29,7 @@ core.redraw = function() {
 
   context.fillStyle = "#000000";
   context.fillRect(0, 0, w, h);
+
 
   context.lineWidth = 1;
   var forward = (core.rawVelocity > 0);
@@ -46,6 +51,35 @@ core.redraw = function() {
     context.stroke();
   }
 
+
+  var ship_x = (w / 2) + core.yaw;
+  var ship_y = (h - 128) - (core.rawVelocity * 4);
+
+  context.strokeStyle = 'rgba(255, 255, 0, 0.9)';
+  context.fillStyle = 'rgba(255, 200, 0, 0.9)';
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(
+    ship_x,
+    ship_y + Math.max(0, (768 * core.calmedAcceleration)));
+  context.lineTo(ship_x - 6, ship_y);
+  context.lineTo(ship_x + 6, ship_y);
+  context.closePath();
+  context.fill();
+  context.stroke();
+
+  context.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+  context.fillStyle = 'rgba(64, 64, 64, 1)';
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(ship_x, ship_y - 24);
+  context.lineTo(ship_x + 16, ship_y + 24);
+  context.lineTo(ship_x, ship_y + 12);
+  context.lineTo(ship_x - 16, ship_y + 24);
+  context.closePath();
+  context.fill();
+  context.stroke();
+
   core.updateGamepads();
   core.updateFPS();
 };
@@ -63,6 +97,11 @@ core.step = function() {
 
   core.rawAcceleration = 3 * (core.input.axes[1] / core.ups);
   core.rawWork += Math.abs(core.rawAcceleration);
+
+  core.calmedAcceleration =
+    (0.95 * core.calmedAcceleration) +
+    (0.05 * core.rawAcceleration);
+
   core.sessionWork += Math.abs(core.rawAcceleration);
   core.rawVelocity += core.rawAcceleration;
   core.rawVelocity = core.rawVelocity * core.friction;
@@ -75,6 +114,31 @@ core.step = function() {
         z: Math.random()
       });
   }
+
+  var impulse = (6 / core.ups);
+  var max_impulse = 6;
+
+  var yaw_r = (core.input.axes[5] > 0.5);
+  var yaw_l = (core.input.axes[2] > 0.5);
+  if (yaw_r && !yaw_l) {
+    core.yawAcceleration = impulse;
+  } else if (!yaw_r && yaw_l) {
+    core.yawAcceleration = -impulse;
+  } else {
+    core.yawAcceleration = 0;
+    core.yawVelocity *= 0.95;
+  }
+
+  if (Math.abs(impulse) > max_impulse) {
+    if (impulse > 0) {
+      impulse = max_impulse;
+    } else {
+      impulse = -max_impulse;
+    }
+  }
+
+  core.yawVelocity += core.yawAcceleration;
+  core.yaw += core.yawVelocity;
 
   var forward = (core.rawVelocity > 0);
   for (var ii = 0; ii < core.stars.length; ii++) {
