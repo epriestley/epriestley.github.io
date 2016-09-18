@@ -124,10 +124,10 @@ core.updateGamepads = function() {
     48,
     80,
     [
-      core.input.buttons[14],
-      core.input.buttons[12],
-      core.input.buttons[11],
-      core.input.buttons[13],
+      core.input.buttons[14] || core.input.buttons[4],
+      core.input.buttons[12] || core.input.buttons[7],
+      core.input.buttons[11] || core.input.buttons[5],
+      core.input.buttons[13] || core.input.buttons[6],
       (core.input.axes[5] > 0.5)
     ]);
 
@@ -213,16 +213,10 @@ core.drawGamepadAxis = function(axis_x, axis_y, value) {
   }
 
   context.fillStyle = 'rgba(255, 255, 255, 1)';
-  context.lineWidth = 2;
+  context.strokeStyle = 'rgba(80, 80, 80, 0.5)';
   context.fillRect(x - (bar_w/2), rect_y, bar_w, rect_h);
+  context.lineWidth = 2;
   context.strokeRect(x - (bar_w/2), y - bar_h, bar_w, bar_h * 2);
-
-  // if (core.padIndex !== null && ii == core.padIndex) {
-  //   context.strokeStyle = 'rgba(255, 255, 255, 1)';
-  // } else {
-  //   context.strokeStyle = 'rgba(40, 40, 40, 0.90)';
-  // }
-
 
 };
 
