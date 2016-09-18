@@ -1,5 +1,63 @@
 var core = {};
 
+var Camera = function(){};
+
+Camera.prototype = {
+  translateX: 0,
+  translateY: 0,
+  scale: 1.0,
+  projectVector: function(p) {
+    var canvas = core.canvas;
+    var w = canvas.width;
+    var h = canvas.height;
+
+    var x = p.x;
+    var y = p.y;
+
+    var tx = this.translateX;
+    var ty = this.translateY;
+
+    x -= tx;
+    y -= ty;
+
+    x = x * this.scale;
+    y = y * this.scale;
+
+    return {
+      x: ((w / 2) + x),
+      y: ((h / 2) - y)
+    };
+  },
+
+  unprojectVector: function(p) {
+    var canvas = core.canvas;
+    var w = canvas.width;
+    var h = canvas.height;
+
+    var x = p.x;
+    var y = p.y;
+
+    x = (+(x) - (w / 2)) / this.scale;
+    y = (-(y) + (h / 2)) / this.scale;
+
+    x = x + this.translateX;
+    y = y + this.translateY;
+
+    return {
+      x: x,
+      y: y
+    };
+  },
+
+  scaleVector: function(p) {
+    return {
+      x: p.x * this.scale,
+      y: p.y * this.scale
+    };
+  }
+};
+
+core.camera = new Camera();
 core.lastUpdate = null;
 core.deltaAccumulator = 0;
 core.lastFrame = null;
@@ -30,7 +88,6 @@ core.redraw = function() {
   context.fillStyle = "#000000";
   context.fillRect(0, 0, w, h);
 
-
   context.lineWidth = 1;
   var forward = (core.rawVelocity > 0);
   for (var ii = 0; ii < core.stars.length; ii++) {
@@ -51,9 +108,25 @@ core.redraw = function() {
     context.stroke();
   }
 
+  var camera = core.camera;
 
-  var ship_x = (w / 2) + core.yaw;
-  var ship_y = (h - 128) - (core.rawVelocity * 4);
+  var ship_dim = camera.scaleVector({
+    x: 32,
+    y: 48
+  });
+
+  var ship_beam = (ship_dim.y / 2);
+  var ship_wing = (ship_dim.x / 2);
+  var ship_engine = (ship_dim.y / 4);
+  var burn_width = (ship_dim.y / 8);
+
+  var ship_pos = camera.projectVector({
+    x: core.yaw,
+    y: core.rawVelocity * 10 - (ship_beam * 15)
+  });
+
+  var ship_x = ship_pos.x;
+  var ship_y = ship_pos.y;
 
   context.strokeStyle = 'rgba(255, 255, 0, 0.9)';
   context.fillStyle = 'rgba(255, 200, 0, 0.9)';
@@ -61,9 +134,9 @@ core.redraw = function() {
   context.beginPath();
   context.moveTo(
     ship_x,
-    ship_y + Math.max(0, (768 * core.calmedAcceleration)));
-  context.lineTo(ship_x - 6, ship_y);
-  context.lineTo(ship_x + 6, ship_y);
+    ship_y + Math.max(0, (ship_beam * 32 * core.calmedAcceleration)));
+  context.lineTo(ship_x - burn_width, ship_y);
+  context.lineTo(ship_x + burn_width, ship_y);
   context.closePath();
   context.fill();
   context.stroke();
@@ -72,10 +145,10 @@ core.redraw = function() {
   context.fillStyle = 'rgba(64, 64, 64, 1)';
   context.lineWidth = 1;
   context.beginPath();
-  context.moveTo(ship_x, ship_y - 24);
-  context.lineTo(ship_x + 16, ship_y + 24);
-  context.lineTo(ship_x, ship_y + 12);
-  context.lineTo(ship_x - 16, ship_y + 24);
+  context.moveTo(ship_x, ship_y - ship_beam);
+  context.lineTo(ship_x + ship_wing, ship_y + ship_beam);
+  context.lineTo(ship_x, ship_y + ship_engine);
+  context.lineTo(ship_x - ship_wing, ship_y + ship_beam);
   context.closePath();
   context.fill();
   context.stroke();
@@ -416,6 +489,8 @@ window.onresize = function() {
 
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
+
+  core.camera.scale = (canvas.height / 1024);
 
   core.stars = [];
 
