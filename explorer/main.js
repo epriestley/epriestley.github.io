@@ -371,7 +371,7 @@ window.onload = function() {
 
   var saved;
   try {
-    saved = JSON.parse(localStorage.getItem('saved-game'));
+    saved = JSON.parse(localStorage.getItem('saved-game')) || {};
   } catch (exception) {
     saved = {};
   }
