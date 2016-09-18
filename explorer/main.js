@@ -27,12 +27,21 @@ core.redraw = function() {
   context.fillRect(0, 0, w, h);
 
   context.lineWidth = 1;
+  var forward = (core.rawVelocity > 0);
   for (var ii = 0; ii < core.stars.length; ii++) {
     var star = core.stars[ii];
+
+    var size = core.rawVelocity * star.z * 3;
+    if (forward) {
+      size = Math.max(1, size);
+    } else {
+      size = Math.min(-1, size);
+    }
+
     context.strokeStyle = 'rgba(255, 255, 255, ' + star.z + ')';
     context.beginPath();
     context.moveTo(star.x, star.y);
-    context.lineTo(star.x, star.y + (core.rawVelocity * star.z * 3));
+    context.lineTo(star.x, star.y + size);
     context.closePath();
     context.stroke();
   }
@@ -67,10 +76,14 @@ core.step = function() {
       });
   }
 
+  var forward = (core.rawVelocity > 0);
   for (var ii = 0; ii < core.stars.length; ii++) {
     core.stars[ii].y += (core.rawVelocity * core.stars[ii].z);
-    if (core.stars[ii].y > h) {
+    if (forward && core.stars[ii].y > h) {
       core.stars[ii].y -= h;
+    }
+    if (!forward && core.stars[ii].y < 0) {
+      core.stars[ii].y += h;
     }
   }
 
@@ -293,7 +306,13 @@ core.readInput = function() {
   }
 
   for (ii = 0; ii < 8; ii++) {
-    core.input.axes[ii] = pad.axes[ii] || 0;
+    var value = pad.axes[ii] || 0;
+
+    if (Math.abs(value) < 0.1) {
+      value = 0;
+    }
+
+    core.input.axes[ii] = value;
   }
 
 };
