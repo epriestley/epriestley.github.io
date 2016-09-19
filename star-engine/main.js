@@ -75,6 +75,8 @@ core.ups = 50;
 core.yaw = 0;
 core.yawVelocity = 0;
 core.yawAcceleration = 0;
+core.warp = null;
+core.jumps = 0;
 
 core.stars = [];
 
@@ -100,7 +102,13 @@ core.redraw = function() {
       size = Math.min(-1, size);
     }
 
-    context.strokeStyle = 'rgba(255, 255, 255, ' + star.z + ')';
+    if (core.warp) {
+      context.strokeStyle = 'rgba(255, 0, 0, ' + star.z + ')';
+      size *= core.warp.charge / 100;
+    } else {
+      context.strokeStyle = 'rgba(255, 255, 255, ' + star.z + ')';
+    }
+
     context.beginPath();
     context.moveTo(star.x, star.y);
     context.lineTo(star.x, star.y + size);
@@ -122,19 +130,32 @@ core.redraw = function() {
 
   var ship_pos = camera.projectVector({
     x: core.yaw,
-    y: core.rawVelocity * 10 - (ship_beam * 15)
+    y: 0
   });
 
   var ship_x = ship_pos.x;
   var ship_y = ship_pos.y;
 
-  context.strokeStyle = 'rgba(255, 255, 0, 0.9)';
-  context.fillStyle = 'rgba(255, 200, 0, 0.9)';
+  // When going forward, the ship rises from 1/6th of the way up the screen
+  // when stopped to 4/6ths of the way up the screen when moving near maximum
+  // speed. When going backward, it falls very slightly to 11/12ths of the way
+  // up the screen. This tracking is independent of the zoom level.
+  var camera_track;
+  if (core.rawVelocity > 0) {
+    camera_track = (core.rawVelocity / 30) * (h / 2);
+  } else {
+    camera_track = (core.rawVelocity / 30) * (h / 12);
+  }
+  var camera_base = (h / 3);
+  ship_y = ship_y + camera_base - camera_track;
+
+  context.strokeStyle = 'rgba(0, 255, 255, 0.6)';
+  context.fillStyle = 'rgba(0, 200, 255, 0.6)';
   context.lineWidth = 1;
   context.beginPath();
   context.moveTo(
     ship_x,
-    ship_y + Math.max(0, (ship_beam * 32 * core.calmedAcceleration)));
+    ship_y + Math.max(0, (ship_beam * 3 * core.calmedAcceleration)));
   context.lineTo(ship_x - burn_width, ship_y);
   context.lineTo(ship_x + burn_width, ship_y);
   context.closePath();
@@ -173,7 +194,7 @@ core.step = function() {
 
   core.calmedAcceleration =
     (0.95 * core.calmedAcceleration) +
-    (0.05 * core.rawAcceleration);
+    (0.05 * core.input.axes[1]);
 
   core.sessionWork += Math.abs(core.rawAcceleration);
   core.rawVelocity += core.rawAcceleration;
@@ -221,6 +242,33 @@ core.step = function() {
     }
     if (!forward && core.stars[ii].y < 0) {
       core.stars[ii].y += h;
+    }
+  }
+
+  if (!core.warp) {
+    if (core.rawVelocity > 25) {
+      if (yaw_r && yaw_l) {
+        core.warp = {
+          charge: 100
+        };
+      }
+    }
+  } else {
+    if (!yaw_r || !yaw_l) {
+      core.warp = null;
+    } else if (core.rawVelocity < 25) {
+      core.warp = null;
+    } else if (core.calmedAcceleration < 0.9) {
+      core.warp.charge *= 0.95;
+    } else {
+      core.warp.charge++;
+    }
+
+    if (core.warp && core.warp.charge > 1000) {
+      core.warp = null;
+      core.rawVelocity = 5;
+      core.rawAcceleration = 0;
+      core.jumps++;
     }
   }
 
@@ -352,6 +400,13 @@ core.updateGamepads = function() {
     64,
     core.input.axes[0]);
 
+  if (core.warp) {
+    core.drawGamepadAxis(
+      256,
+      64,
+      core.warp.charge / 1000);
+  }
+
 };
 
 core.drawGamepadCluster = function(stick_x, stick_y, pressed) {
@@ -449,6 +504,18 @@ core.readInput = function() {
       value = 0;
     }
 
+    // TODO: If we get a reading larger than 1.0, clamp it to 1.0. It would
+    // be better to store the largest reading we've ever seen and divide by
+    // that reading instead, since readings like "1.19" appear to be continuous
+    // and legitimate.
+    if (Math.abs(value) > 1.0) {
+      if (value > 0) {
+        value = 1;
+      } else {
+        value = -1;
+      }
+    }
+
     core.input.axes[ii] = value;
   }
 
@@ -481,6 +548,8 @@ core.updateFPS = function() {
 
     var raw_velocity = parseInt(core.rawVelocity);
     context.fillText(raw_velocity + ' Raw Velocity', 10, 72);
+
+    context.fillText(core.jumps + ' Starjumps', 10, 88);
   }
 };
 
@@ -516,6 +585,7 @@ window.onload = function() {
   }
 
   core.rawWork = saved.rawWork || 0;
+  core.jumps = saved.jumps || 0;
 
   setInterval(core.save, 1000);
 
@@ -524,7 +594,8 @@ window.onload = function() {
 
 core.save = function() {
   var data = {
-    rawWork: core.rawWork
+    rawWork: core.rawWork,
+    jumps: core.jumps
   };
 
   localStorage.setItem('saved-game', JSON.stringify(data));
