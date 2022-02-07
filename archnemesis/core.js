@@ -98,12 +98,13 @@
 
       if (want_recipes.length) {
         this.setSinkGuidance('Critical Recipes Available');
-
+        this.setSinkItems([]);
         return;
       }
 
       if (available.length) {
         this.setSinkGuidance('Other Recipes Available');
+        this.setSinkItems([]);
         return;
       }
 
