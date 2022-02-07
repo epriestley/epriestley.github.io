@@ -11,6 +11,7 @@
   Engine.prototype = {
     queue: null,
     recipeItems: [],
+    recipeResults: [],
 
     addItem: function(item) {
       item.setEngine(this);
@@ -133,6 +134,8 @@
         }
       }
 
+      var recipe_results = [];
+
       if (build_recipes.length) {
         var recipe_names = [];
         for (var ii = 0; ii < build_recipes.length; ii++) {
@@ -148,6 +151,8 @@
           for (var jj = 0; jj < recipe_items.length; jj++) {
             prefix.push(recipe_items[jj]);
           }
+
+          recipe_results.push(recipe_name);
         }
 
         recipe_names = recipe_names.join(' + ');
@@ -171,7 +176,7 @@
       var recipe_items = this.getExtraItems(have, need, prefix);
       if (recipe_items) {
         this.setSinkGuidance(guidance);
-        this.setSinkItems(recipe_items);
+        this.setSinkItems(recipe_items, recipe_results);
         return;
       }
 
@@ -239,7 +244,6 @@
         return;
       }
 
-
       // Mark this item as needed.
 
       lib.incrementKey(need, src);
@@ -301,7 +305,7 @@
       lib.setNodeContent(node, guidance);
     },
 
-    setSinkItems: function(items) {
+    setSinkItems: function(items, results) {
       var ui = this.getUI();
       var node = ui.getSinkRecipeNode();
 
@@ -317,6 +321,7 @@
       lib.setNodeContent(node, content)
 
       this.recipeItems = items;
+      this.recipeResults = results || [];
 
       return this;
     },
@@ -452,6 +457,11 @@
       for (var ii = 0; ii < this.recipeItems.length; ii++) {
         var item = map[this.recipeItems[ii]];
         item.setCount(item.getCount() - 1);
+      }
+
+      for (var ii = 0; ii < this.recipeResults.length; ii++) {
+        var item = map[this.recipeResults[ii]];
+        item.setCount(item.getCount() + 1);
       }
 
       this
