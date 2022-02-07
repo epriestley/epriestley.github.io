@@ -33,9 +33,7 @@
         return;
       }
 
-      var counts = this.getInventoryCounts();
-
-      var have = lib.copy({}, counts);
+      var have = this.getInventoryCounts();
       var consume = {};
       var need = {};
 
@@ -65,15 +63,25 @@
         var item = this.inventoryItems[ii];
         var recipe = item.getRecipe();
 
+        var is_critical = (item.getName() in need);
+
         if (recipe === null) {
           continue;
         }
 
         var any_missing = false;
         for (var jj = 0; jj < recipe.length; jj++) {
-          if (counts[jj] > 0) {
-            continue;
+
+          if (is_critical) {
+            if (consume[recipe[jj]] > 0) {
+              continue;
+            }
+          } else {
+            if (have[recipe[jj]] > 0) {
+              continue;
+            }
           }
+
           any_missing = true;
           break;
         }
@@ -85,33 +93,85 @@
         available.push(
           {
             item: item,
-            isNeeded: (item.getName() in need)
+            isCritical: is_critical
           });
       }
 
-      var want_recipes = [];
-      for (var ii = 0; ii < available.length; ii++) {
-        if (available[ii].isNeeded) {
-          want_recipes.push(available[ii]);
+      available.sort(function(u, v) {
+        if (u.isCritical != v.isCritical) {
+          return v.isCritical ? 1 : -1;
+        }
+
+        // After building critical recipes, prefer to build longer recipes
+        // to reduce inventory size.
+
+        var u_len = u.item.getRecipe().length;
+        var v_len = v.item.getRecipe().length;
+        if (v_len != u_len) {
+          return v_len - u_len;
+        }
+
+        return 0;
+      });
+
+      var build_recipes = [];
+      var prefix = [];
+      var guidance = '';
+
+      if (available.length) {
+        build_recipes.push(available[0]);
+
+        // We can build two recipes at the same time if they both have
+        // length 2.
+        var avail = 4 - build_recipes[0].item.getRecipe().length;
+        for (var ii = 1; ii < available.length; ii++) {
+          var r_len = available[ii].item.getRecipe().length;
+          if (r_len <= avail) {
+            build_recipes.push(available[ii]);
+            avail -= r_len;
+          }
         }
       }
 
-      if (want_recipes.length) {
-        this.setSinkGuidance('Critical Recipes Available');
-        this.setSinkItems([]);
-        return;
+      if (build_recipes.length) {
+        var recipe_names = [];
+        for (var ii = 0; ii < build_recipes.length; ii++) {
+          var recipe_name = build_recipes[ii].item.getName();
+
+          if (build_recipes[ii].isCritical) {
+            recipe_name = recipe_name + ' (!)';
+          }
+
+          recipe_names.push(recipe_name);
+
+          var recipe_items = build_recipes[ii].item.getRecipe();
+          for (var jj = 0; jj < recipe_items.length; jj++) {
+            prefix.push(recipe_items[jj]);
+          }
+        }
+
+        recipe_names = recipe_names.join(' + ');
+
+        if (build_recipes.length > 1) {
+          guidance = 'Build Recipes: ' + recipe_names;
+        } else {
+          guidance = 'Build Recipe: ' + recipe_names;
+        }
+
+        if (prefix.length < 3) {
+          guidance = guidance + ' + Extra Items';
+        } else if (prefix.length < 4) {
+          guidance = guidance + ' + Extra Item';
+        }
+      } else {
+        prefix = [];
+        guidance = 'Using up extra items.'
       }
 
-      if (available.length) {
-        this.setSinkGuidance('Other Recipes Available');
-        this.setSinkItems([]);
-        return;
-      }
-
-      var extra = this.getExtraItems(have, need, []);
-      if (extra) {
-        this.setSinkGuidance('Using up extra items.');
-        this.setSinkItems(extra);
+      var recipe_items = this.getExtraItems(have, need, prefix);
+      if (recipe_items) {
+        this.setSinkGuidance(guidance);
+        this.setSinkItems(recipe_items);
         return;
       }
 
@@ -126,7 +186,7 @@
       var skip = {};
 
       for (var ii = 0; ii < prefix.length; ii++) {
-        skip[prefix[ii].getName()] = true;
+        skip[prefix[ii]] = true;
       }
 
       for (var ii = 0; ii < this.inventoryItems.length; ii++) {
@@ -167,7 +227,7 @@
         return null;
       }
 
-      return names.slice(0, n);
+      return prefix.concat(names.slice(0, n));
     },
 
     getMissingItems: function(src, edges, have, consume, need) {
@@ -179,10 +239,13 @@
         return;
       }
 
-      // If this is a drop-only item, we need it.
 
+      // Mark this item as needed.
+
+      lib.incrementKey(need, src);
+
+      // If this is a drop-only item, we just have to wait for it to drop.
       if (!edges.hasOwnProperty(src)) {
-        lib.incrementKey(need, src);
         return;
       }
 
@@ -250,8 +313,6 @@
         var item = map[items[ii]]
         content.push(item.newRecipeNode());
       }
-
-      console.log(content);
 
       lib.setNodeContent(node, content)
 
