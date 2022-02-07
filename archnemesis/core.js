@@ -141,6 +141,8 @@
         for (var ii = 0; ii < build_recipes.length; ii++) {
           var recipe_name = build_recipes[ii].item.getName();
 
+          recipe_results.push(recipe_name);
+
           if (build_recipes[ii].isCritical) {
             recipe_name = recipe_name + ' (!)';
           }
@@ -151,8 +153,6 @@
           for (var jj = 0; jj < recipe_items.length; jj++) {
             prefix.push(recipe_items[jj]);
           }
-
-          recipe_results.push(recipe_name);
         }
 
         recipe_names = recipe_names.join(' + ');
