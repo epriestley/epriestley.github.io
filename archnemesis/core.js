@@ -535,7 +535,7 @@
         rows);
 
       var content = [
-        lib.newNode('div', attrs, 'Next Recipe'),
+        lib.newNode('div', attrs, 'Next Recipe (v6)'),
         this.getSinkGuidanceNode(),
         recipe_table,
       ];
