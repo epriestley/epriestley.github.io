@@ -122,14 +122,19 @@
       if (available.length) {
         build_recipes.push(available[0]);
 
+        var used_items = lib.fuse(available[0].item.getRecipe());
+
         // We can build two recipes at the same time if they both have
         // length 2.
         var avail = 4 - build_recipes[0].item.getRecipe().length;
         for (var ii = 1; ii < available.length; ii++) {
           var r_len = available[ii].item.getRecipe().length;
           if (r_len <= avail) {
-            build_recipes.push(available[ii]);
-            avail -= r_len;
+            var recipe_items = lib.fuse(available[ii].item.getRecipe());
+            if (!lib.hasIntersection(used_items, recipe_items)) {
+              build_recipes.push(available[ii]);
+              avail -= r_len;
+            }
           }
         }
       }
@@ -1445,6 +1450,30 @@
     node.className = new_classes.join(' ');
 
     return node;
+  },
+
+  fuse: function(list) {
+    var map = {};
+
+    for (var ii = 0; ii < list.length; ii++) {
+      map[list[ii]] = list[ii];
+    }
+
+    return map;
+  },
+
+  hasIntersection: function(map_u, map_v) {
+    for (var k in map_u) {
+      if (!k in map_v) {
+        continue;
+      }
+
+      if (map_u.hasOwnProperty(k) && map_v.hasOwnProperty(k)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
 });
