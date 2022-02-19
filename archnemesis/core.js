@@ -297,7 +297,15 @@
 
       for (var ii = 0; ii < this.inventoryItems.length; ii++) {
         var item = this.inventoryItems[ii];
-        counts[item.getName()] = item.getCount();
+
+        var item_count;
+        if (item.getIsVirtual()) {
+          item_count = 0;
+        } else {
+          item_count = item.getCount();
+        }
+
+        counts[item.getName()] = item_count;
       }
 
       return counts;
@@ -535,7 +543,7 @@
         rows);
 
       var content = [
-        lib.newNode('div', attrs, 'Next Recipe (v6)'),
+        lib.newNode('div', attrs, 'Next Recipe (v7)'),
         this.getSinkGuidanceNode(),
         recipe_table,
       ];
